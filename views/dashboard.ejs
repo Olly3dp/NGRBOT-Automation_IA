@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - NGR Bot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { ngr: { black: '#000000', gold: '#D4AF37', crimson: '#5A0F1C', dark: '#0a0a0a' } },
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #000; color: #fff; }
+    .sidebar { background: linear-gradient(180deg, #0a0a0a, #151515); }
+    .card-g { background: linear-gradient(145deg, #0a0a0a, #151515); }
+    .text-gold { color: #D4AF37; }
+    .bg-crimson { background-color: #5A0F1C; }
+    .badge-premium { background: linear-gradient(135deg, #D4AF37, #F5D76E); }
+    .badge-pending { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .badge-admin { background: linear-gradient(135deg, #5A0F1C, #7a1525); }
+    .nav-active { background: rgba(212,175,55,0.1); color: #D4AF37; border-color: rgba(212,175,55,0.3); }
+    .connected-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 border-r border-yellow-500/20 fixed h-full z-40 hidden md:flex flex-col">
+      <div class="p-5 border-b border-yellow-500/20">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🤖</span>
+          <span class="text-lg font-bold text-gold">NGR BOT</span>
+        </div>
+      </div>
+      <div class="p-5 border-b border-yellow-500/20">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center overflow-hidden">
+            <% if (user.avatar_url) { %>
+              <img src="<%= user.avatar_url %>" alt="Avatar" class="w-full h-full object-cover" id="userAvatarImg">
+            <% } else { %>
+              <span class="text-lg" id="userAvatarIcon">👤</span>
+            <% } %>
+          </div>
+          <div>
+            <p class="font-medium text-sm" id="userName"><%= user.name %></p>
+            <p class="text-xs text-gray-500" id="userEmail"><%= user.email %></p>
+          </div>
+        </div>
+        <div id="statusBadge" class="mt-3"></div>
+      </div>
+      <nav class="flex-1 p-4">
+        <ul class="space-y-1.5">
+          <li><a href="#" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl nav-active text-sm" data-page="connection"><span>📱</span><span>Conexão</span></a></li>
+          <li><a href="#" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-white/5 text-sm" data-page="config"><span>⚙️</span><span>Configurações do Bot</span></a></li>
+          <li><a href="#" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-white/5 text-sm" data-page="plans"><span>💎</span><span>Planos</span></a></li>
+          <li><a href="#" class="nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-white/5 text-sm" data-page="account"><span>👤</span><span>Minha Conta</span></a></li>
+        </ul>
+      </nav>
+      <div class="p-4 border-t border-yellow-500/20">
+        <button onclick="logout()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition w-full text-sm"><span>🚪</span><span>Sair</span></button>
+      </div>
+    </aside>
+
+    <main class="flex-1 md:ml-64">
+      <header class="md:hidden bg-dark border-b border-yellow-500/20 p-3 flex items-center justify-between">
+        <div class="flex items-center gap-2"><span class="text-lg">🤖</span><span class="font-bold text-gold text-sm">NGR BOT</span></div>
+        <button onclick="logout()" class="text-gray-400 text-sm"><span>🚪</span></button>
+      </header>
+      <div class="p-5" id="mainContent">
+        <div id="pageLoading" class="flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="w-8 h-8 border-4 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin mx-auto mb-3"></div>
+            <p class="text-gray-400 text-sm">Carregando...</p>
+          </div>
+        </div>
+        <div id="pageConnection" class="hidden"></div>
+        <div id="pagePlans" class="hidden"></div>
+        <div id="pageConfig" class="hidden">
+          <div class="mb-5"><h1 class="text-lg font-bold">Configurações do Bot</h1><p class="text-gray-400 text-sm">Configure sua chave Groq, personalidade e fluxos automáticos</p></div>
+          
+          <% if (user.isSmartPlan) { %>
+          <!-- IA Blocada para Plano Smart -->
+          <div class="card-g rounded-xl border border-red-500/30 p-5 mb-4 bg-red-500/5">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-bold text-white">🤖 Inteligência Artificial</h3>
+                <p class="text-xs text-gray-400">Recurso exclusivo do plano PRO AI</p>
+              </div>
+              <span class="bg-red-500/20 text-red-400 text-xs px-2 py-1 rounded">Bloqueado</span>
+            </div>
+            <div class="mt-3 pt-3 border-t border-red-500/20">
+              <a href="/plans" class="text-sm text-yellow-400 hover:text-yellow-300 font-medium">Fazer upgrade para PRO AI</a>
+            </div>
+          </div>
+          <% } else { %>
+          <!-- Toggle IA Ativa -->
+          <div class="card-g rounded-xl border border-yellow-500/20 p-5 mb-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-bold text-white">🤖 IA Ativa</h3>
+                <p class="text-xs text-gray-400">Quando ativado, o bot usa a Groq para responder automaticamente</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="aiActive" class="sr-only peer" <%= user.ai_active ? 'checked' : '' %>>
+                <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Configurações da IA -->
+          <div class="card-g rounded-xl border border-yellow-500/20 p-5 mb-4">
+            <h3 class="text-sm font-bold text-white mb-3">🔑 Configurações da IA</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs text-gray-400 mb-1.5">Chave API Groq</label>
+                <input type="password" id="groqKey" value="<%= user.groq_key || '' %>" placeholder="gsk_..." class="w-full bg-black/50 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-yellow-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1.5">Modelo de IA</label>
+                <select id="selectedModel" class="w-full bg-black/50 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-yellow-500 focus:outline-none">
+                  <option value="llama-3.1-8b-instant" <%= user.selected_model === 'llama-3.1-8b-instant' ? 'selected' : '' %>>⚡ Velocidade (Llama 3.1 8B)</option>
+                  <option value="llama-3.3-70b-versatile" <%= user.selected_model === 'llama-3.3-70b-versatile' ? 'selected' : '' %>>🧠 Raciocínio (Llama 3.3 70B)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-400 mb-1.5">Prompt do Sistema (Personalidade)</label>
+                <textarea id="aiPrompt" rows="3" placeholder="Você é um assistente da NG Ruby..." class="w-full bg-black/50 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-yellow-500 focus:outline-none"><%= user.ai_prompt || '' %></textarea>
+                <a href="https://console.groq.com/" target="_blank" class="inline-block mt-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded-lg text-xs transition">Obter Chave API no Groq</a>
+              </div>
+            </div>
+          </div>
+          <% } %>
+
+          <!-- Fluxos Automáticos -->
+          <div class="card-g rounded-xl border border-yellow-500/20 p-5 mb-4">
+            <h3 class="text-sm font-bold text-white mb-3">🔄 Fluxos de Resposta Automática</h3>
+            <p class="text-xs text-gray-400 mb-3">Configure palavras-chave e respostas automáticas (prioridade sobre a IA)</p>
+            <div id="flowsContainer" class="space-y-3">
+            </div>
+            <button onclick="addFlow()" class="mt-3 text-xs text-yellow-400 hover:text-yellow-300 flex items-center gap-1">
+              <span>+ Adicionar Fluxo</span>
+            </button>
+          </div>
+
+          <button onclick="saveAI()" id="btnSaveAI" class="bg-crimson hover:bg-red-700 px-5 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2">
+            <span id="btnSaveAIText">Salvar Todas as Configurações</span>
+            <span id="btnSaveAISpinner" class="hidden"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></span>
+          </button>
+        </div>
+        <div id="pageAccount" class="hidden"></div>
+        <div id="pagePayment" class="hidden"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const SERVER_USER = <%- JSON.stringify(user) %>;
+    const ADMIN_EMAIL = <%- JSON.stringify(adminEmail || '') %>;
+    let socket, userId = SERVER_USER.id;
+    let isAdmin = SERVER_USER.email === ADMIN_EMAIL;
+    let isTrial = false;
+    let currentPage = 'connection';
+    let qrTimeout = null;
+    let notificationTimeout = null;
+
+    async function init() {
+      try {
+        socket = io({ transports: ['polling', 'websocket'], timeout: 5000, forceNew: true });
+        socket.on('connect', function() {
+          console.log('[Socket] Conectado, ID:', socket.id);
+          socket.emit('join-user', userId);
+        });
+        socket.on('connect_error', function(err) {
+          console.error('[Socket] Erro conexao:', err.message);
+        });
+        socket.on('qr', function(qrData) {
+          if (qrTimeout) { clearTimeout(qrTimeout); qrTimeout = null; }
+          try { showQR(qrData); } catch(e) { console.error('[QR] Erro:', e); }
+        });
+        socket.on('status', function(status) {
+          try { updateStatus(status); } catch(e) { console.error('[Status] Erro:', e); }
+        });
+
+        await checkSubscription();
+      } catch (err) {
+        console.error('[Init] Erro:', err.message);
+        var loading = document.getElementById('pageLoading');
+        if (loading) loading.innerHTML = '<div class="text-center py-10"><p class="text-red-400 text-sm">Erro ao carregar. <button onclick="location.reload()" class="text-yellow-400 underline">Tentar novamente</button></p></div>';
+      }
+    }
+
+    async function checkStatus() {
+      try {
+        var res = await fetch('/api/whatsapp/status');
+        return await res.json();
+      } catch(e) {
+        return { connected: false };
+      }
+    }
+
+    async function checkSubscription() {
+      try {
+        var res = await fetch('/api/subscription/status');
+        if (!res.ok) {
+          if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+          }
+          throw new Error('Erro na requisição: ' + res.status);
+        }
+        var subData = await res.json();
+        console.log('[checkSubscription] Resposta:', JSON.stringify(subData));
+        isAdmin = subData.isAdmin || isAdmin;
+        isTrial = subData.isTrial || false;
+        console.log('[checkSubscription] isTrial:', isTrial);
+        renderDashboard(subData, SERVER_USER, isTrial);
+      } catch (err) {
+        console.error('[checkSubscription] Erro:', err.message);
+        isAdmin = SERVER_USER.email === ADMIN_EMAIL;
+        renderDashboard({ isActive: isAdmin }, SERVER_USER, false);
+      }
+    }
+
+    function renderDashboard(subData, userData, isTrial) {
+      window.subData = subData || {};
+      document.getElementById('userName').textContent = userData.name;
+      document.getElementById('userEmail').textContent = userData.email;
+      var badge = document.getElementById('statusBadge');
+      
+      if (isAdmin) {
+        badge.innerHTML = '<div class="badge-admin px-3 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1"><span>⭐</span> ASSINATURA PREMIUM (ADMIN)</div>';
+      } else if (subData.trialExpired) {
+        badge.innerHTML = '<div class="badge-pending px-3 py-1 rounded-full text-xs font-bold text-black flex items-center gap-1"><span>⚠️</span> PERÍODO EXPIRADO</div>';
+        // Mostrar alerta de trial expirado
+        alert('Seu período de teste gratuito acabou. Escolha um plano para continuar usando o NGR BOT.');
+      } else if (isTrial) {
+        var daysLeft = subData.daysRemaining || 7;
+        badge.innerHTML = '<div class="badge-premium px-3 py-1 rounded-full text-xs font-bold text-black flex items-center gap-1"><span>🆓</span> PERÍODO GRÁTIS (' + daysLeft + ' dias)</div>';
+      } else if (subData.isActive) {
+        badge.innerHTML = '<div class="badge-premium px-3 py-1 rounded-full text-xs font-bold text-black flex items-center gap-1"><span>✓</span> PLANO ATIVO</div>';
+      } else {
+        badge.innerHTML = '<div class="badge-pending px-3 py-1 rounded-full text-xs font-bold text-black flex items-center gap-1"><span>⏳</span> PAGAMENTO PENDENTE</div>';
+      }
+      
+      var hasAccess = subData.isActive || isAdmin || isTrial;
+      if (subData.trialExpired) {
+        hasAccess = false;
+      }
+      renderPage(hasAccess, userData, isTrial, subData.trialExpired);
+    }
+
+    function renderPage(hasAccess, userData, isTrial, trialExpired) {
+      // Fallback para variável global se parâmetro não for passado
+      if (typeof isTrial === 'undefined') {
+        isTrial = window.isTrial || false;
+      }
+      if (typeof trialExpired === 'undefined') {
+        trialExpired = false;
+      }
+      console.log('[renderPage] hasAccess:', hasAccess, 'isAdmin:', isAdmin, 'isTrial:', isTrial, 'trialExpired:', trialExpired);
+      var pageIds = ['pageLoading', 'pageConnection', 'pagePlans', 'pageConfig', 'pageAccount', 'pagePayment'];
+      for (var i = 0; i < pageIds.length; i++) {
+        var el = document.getElementById(pageIds[i]);
+        if (el) el.classList.add('hidden');
+      }
+      // Trial users always have access (unless expired)
+      if (trialExpired) {
+        // Redirecionar para página de planos
+        currentPage = 'plans';
+        var plansPage = document.getElementById('pagePlans');
+        plansPage.classList.remove('hidden');
+        plansPage.innerHTML = plansHTMLExpired();
+        return;
+      }
+      if (isTrial) {
+        hasAccess = true;
+      }
+      if (!hasAccess && !isAdmin) {
+        console.log('[renderPage] Mostrando pagina de pagamento');
+        var pay = document.getElementById('pagePayment');
+        pay.classList.remove('hidden');
+        pay.innerHTML = paymentHTML();
+        return;
+      }
+      if (isTrial && currentPage === 'payment') {
+        currentPage = 'connection';
+      }
+      switch(currentPage) {
+        case 'connection':
+          document.getElementById('pageConnection').classList.remove('hidden');
+          loadConnectionPage();
+          break;
+        case 'config':
+          document.getElementById('pageConfig').classList.remove('hidden');
+          renderFlows();
+          break;
+        case 'plans':
+          document.getElementById('pagePlans').classList.remove('hidden');
+          document.getElementById('pagePlans').innerHTML = plansHTML();
+          break;
+        case 'account':
+          document.getElementById('pageAccount').classList.remove('hidden');
+          document.getElementById('pageAccount').innerHTML = accountHTML(userData);
+          break;
+        default:
+          document.getElementById('pageConnection').classList.remove('hidden');
+          loadConnectionPage();
+      }
+    }
+
+    function showNotification(msg, type) {
+      var existing = document.getElementById('notification');
+      if (existing) existing.remove();
+      var bg = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+      var div = document.createElement('div');
+      div.id = 'notification';
+      div.className = 'fixed top-5 right-5 z-50 ' + bg + ' text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300';
+      div.textContent = msg;
+      document.body.appendChild(div);
+      if (notificationTimeout) clearTimeout(notificationTimeout);
+      notificationTimeout = setTimeout(function() { 
+        div.style.opacity = '0'; 
+        setTimeout(function() { div.remove(); }, 300); 
+      }, 3000);
+    }
+
+    async function loadConnectionPage() {
+      var container = document.getElementById('pageConnection');
+      container.innerHTML = connectHTML(window.subData || {});
+      var status = await checkStatus();
+      if (status.connected) {
+        var el = document.getElementById('qrStatus');
+        if (el) el.innerHTML = '<p class="text-green-400 text-sm">WhatsApp conectado!</p>';
+        var waText = document.getElementById('waStatusText');
+        if (waText) { waText.textContent = 'Conectado'; waText.className = 'text-green-400 font-medium text-sm'; }
+      } else if (status.connecting) {
+        var el = document.getElementById('qrStatus');
+        if (el) el.innerHTML = '<p class="text-yellow-400 animate-pulse text-sm">Conectando... Aguarde o QR Code</p>';
+      }
+    }
+
+    function connectHTML(subData) {
+      subData = subData || {};
+      var planName = subData.planName || (isAdmin ? 'Admin Premium' : (isTrial ? 'Trial - 7 dias grátis' : 'Plano Free'));
+      var daysRemaining = subData.daysRemaining !== undefined ? subData.daysRemaining : (isTrial ? 7 : 0);
+      var isActive = subData.isActive !== undefined ? subData.isActive : false;
+      var isTrialUser = isTrial || (subData.isTrial === true);
+      var validText;
+      
+      if (isAdmin) {
+        validText = 'Indefinido';
+      } else if (isTrialUser) {
+        validText = daysRemaining + ' dias (Trial)';
+      } else if (isActive) {
+        validText = daysRemaining + ' dias restantes';
+      } else {
+        validText = 'Plano Free';
+      }
+      
+      return '<div class="mb-5"><h1 class="text-lg font-bold">Conexão WhatsApp</h1><p class="text-gray-400 text-sm">Gerencie a conexão do seu WhatsApp</p></div>' +
+        '<div class="grid lg:grid-cols-2 gap-4">' +
+        '<div class="card-g rounded-xl border border-yellow-500/20 p-5">' +
+        '<h2 class="text-sm font-bold mb-3 flex items-center gap-2"><span>📱</span> WhatsApp</h2>' +
+        '<div id="qrContainer" class="text-center py-6">' +
+        '<div class="qr-status bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 inline-block" id="qrStatus">' +
+        '<p class="text-yellow-400 text-sm">Clique em "Conectar" para gerar o QR Code</p>' +
+        '</div></div>' +
+        '<div class="flex gap-3 mt-3">' +
+        '<button onclick="connectWA()" id="btnConnect" class="flex-1 bg-crimson hover:bg-red-700 px-4 py-2.5 rounded-xl text-sm font-medium transition">Conectar WhatsApp</button>' +
+        '<button onclick="disconnectWA()" class="bg-gray-800 hover:bg-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium transition text-gray-300">Desconectar</button>' +
+        '</div></div>' +
+        '<div class="card-g rounded-xl border border-yellow-500/20 p-5">' +
+        '<h2 class="text-sm font-bold mb-3 flex items-center gap-2"><span>📊</span> Status da Conta</h2>' +
+        '<div class="space-y-3">' +
+        '<div class="flex justify-between items-center p-3 bg-black/30 rounded-lg text-sm"><span class="text-gray-400">Plano</span><span class="text-gold font-medium text-sm">' + planName + '</span></div>' +
+        '<div class="flex justify-between items-center p-3 bg-black/30 rounded-lg text-sm"><span class="text-gray-400">Validade</span><span class="text-white font-medium text-sm">' + validText + '</span></div>' +
+        '<div class="flex justify-between items-center p-3 bg-black/30 rounded-lg text-sm"><span class="text-gray-400">WhatsApp</span><span class="text-gray-400 text-sm" id="waStatusText">Desconectado</span></div>' +
+        '</div></div></div>';
+    }
+
+    function plansHTML() {
+      return '<div class="mb-5"><h1 class="text-lg font-bold">Planos e Assinatura</h1><p class="text-gray-400 text-sm">Escolha o plano ideal para seu negócio</p></div>' +
+        '<div class="grid md:grid-cols-2 gap-5">' +
+        // Plan Fluxos
+        '<div class="card-g rounded-xl border border-gray-600/30 p-5">' +
+        '<div class="text-center mb-4">' +
+        '<h3 class="text-base font-bold text-white">NGR Fluxos</h3>' +
+        '<p class="text-gray-500 text-xs">Automação sem IA</p>' +
+        '</div>' +
+        '<div class="text-center mb-4">' +
+        '<span class="text-3xl font-bold text-gold">R$ 27,90</span><span class="text-xs text-gray-400">/mês</span>' +
+        '</div>' +
+        '<div class="text-left text-xs text-gray-400 mb-4 space-y-2">' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Dashboard completo</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Fluxos automatizados</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Menu automático</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Multi-contas WhatsApp</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-gray-500">✗</span><span class="text-gray-500">Inteligência Artificial</span></div>' +
+        '</div>' +
+        '<button onclick="subscribe(\'fluxos\')" class="w-full border-2 border-yellow-500 text-yellow-400 hover:bg-yellow-500/10 py-3 rounded-xl font-bold text-sm transition">Escolher Fluxos</button>' +
+        '</div>' +
+        // Plan Pro
+        '<div class="card-g rounded-xl border border-yellow-500/40 p-5 relative">' +
+        '<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-[10px] font-bold px-3 py-1 rounded-full">MAIS POPULAR</div>' +
+        '<div class="text-center mb-4">' +
+        '<h3 class="text-base font-bold text-white">NGR Pro (IA)</h3>' +
+        '<p class="text-gray-500 text-xs">Automação + IA Avançada</p>' +
+        '</div>' +
+        '<div class="text-center mb-4">' +
+        '<span class="text-3xl font-bold text-gold">R$ 56,90</span><span class="text-xs text-gray-400">/mês</span>' +
+        '</div>' +
+        '<div class="text-left text-xs text-gray-400 mb-4 space-y-2">' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Tudo do Fluxos</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400 font-bold">✓</span><span class="text-yellow-400">🤖 IA Groq Llama</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Respostas inteligentes</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Histórico de conversas</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Suporte prioritário</span></div>' +
+        '</div>' +
+        '<button onclick="subscribe(\'pro\')" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-400 text-black py-3 rounded-xl font-bold text-sm hover:opacity-90 transition">Escolher Pro</button>' +
+        '</div>' +
+        '</div>' +
+        '<div class="mt-6 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20">' +
+        '<p class="text-center text-yellow-400 text-sm">🎁 7 dias grátis para novos usuários - Experimente sem cartão de crédito</p>' +
+        '</div>';
+    }
+
+    function plansHTMLExpired() {
+      return '<div class="mb-5"><h1 class="text-lg font-bold text-red-400">Período de Teste Expirado</h1><p class="text-gray-400 text-sm">Escolha um plano para continuar usando o NGR BOT</p></div>' +
+        '<div class="card-g rounded-xl border border-red-500/30 p-6 mb-4 text-center">' +
+        '<div class="text-5xl mb-4">⚠️</div>' +
+        '<h2 class="text-xl font-bold text-white mb-2">Seu período de teste gratuitos acabou</h2>' +
+        '<p class="text-gray-400 text-sm mb-4">Escolha um plano para continuar usando todas as funcionalidades do NGR BOT</p>' +
+        '</div>' +
+        '<div class="grid md:grid-cols-2 gap-5">' +
+        // Plan Fluxos
+        '<div class="card-g rounded-xl border border-gray-600/30 p-5">' +
+        '<div class="text-center mb-4">' +
+        '<h3 class="text-base font-bold text-white">NGR Smart</h3>' +
+        '<p class="text-gray-500 text-xs">Automação sem IA</p>' +
+        '</div>' +
+        '<div class="text-center mb-4">' +
+        '<span class="text-3xl font-bold text-gold">R$ 27,90</span><span class="text-xs text-gray-400">/mês</span>' +
+        '</div>' +
+        '<div class="text-left text-xs text-gray-400 mb-4 space-y-2">' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Dashboard completo</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Fluxos automatizados</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Menu automático</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Multi-contas WhatsApp</span></div>' +
+        '</div>' +
+        '<button onclick="subscribe(\'fluxos\')" class="w-full border-2 border-yellow-500 text-yellow-400 hover:bg-yellow-500/10 py-3 rounded-xl font-bold text-sm transition">Assinar NGR Smart</button>' +
+        '</div>' +
+        // Plan Pro
+        '<div class="card-g rounded-xl border border-yellow-500/40 p-5 relative">' +
+        '<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-[10px] font-bold px-3 py-1 rounded-full">MAIS POPULAR</div>' +
+        '<div class="text-center mb-4">' +
+        '<h3 class="text-base font-bold text-white">NGR Pro AI</h3>' +
+        '<p class="text-gray-500 text-xs">Automação + IA Avançada</p>' +
+        '</div>' +
+        '<div class="text-center mb-4">' +
+        '<span class="text-3xl font-bold text-gold">R$ 56,90</span><span class="text-xs text-gray-400">/mês</span>' +
+        '</div>' +
+        '<div class="text-left text-xs text-gray-400 mb-4 space-y-2">' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Tudo do Smart</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400 font-bold">✓</span><span class="text-yellow-400">🤖 IA Groq Llama</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Respostas inteligentes</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Histórico de conversas</span></div>' +
+        '<div class="flex items-center gap-2"><span class="text-green-400">✓</span><span>Suporte prioritário</span></div>' +
+        '</div>' +
+        '<button onclick="subscribe(\'pro\')" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-400 text-black py-3 rounded-xl font-bold text-sm hover:opacity-90 transition">Assinar NGR Pro AI</button>' +
+        '</div>' +
+        '</div>';
+    }
+
+    function accountHTML(userData) {
+      var currentAvatar = userData.avatar_url || '';
+      var avatarDisplay = currentAvatar ? '<img src="' + currentAvatar + '" class="w-16 h-16 rounded-full object-cover">' : '<div class="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center text-2xl">👤</div>';
+      var typeText = isAdmin ? 'Admin' : (isTrial ? 'Trial' : 'Premium');
+      return '<div class="mb-5"><h1 class="text-lg font-bold">Minha Conta</h1><p class="text-gray-400 text-sm">Suas informações</p></div>' +
+        '<div class="card-g rounded-xl border border-yellow-500/20 p-5 mb-4">' +
+        '<div class="flex items-center gap-4 mb-4">' +
+        '<div class="relative">' + avatarDisplay + '</div>' +
+        '<div><h3 class="font-bold text-lg">' + userData.name + '</h3><p class="text-gray-400 text-sm">' + userData.email + '</p></div>' +
+        '</div>' +
+        '<button onclick="showAvatarModal()" class="text-yellow-400 text-sm hover:text-yellow-300 hover:opacity-80" style="text-decoration:none;">✏️ Editar perfil</button>' +
+        '</div>' +
+        '<div class="space-y-3">' +
+        '<div class="flex justify-between items-center p-3 bg-black/30 rounded-lg text-sm"><span class="text-gray-400">Email</span><span class="text-sm">' + userData.email + '</span></div>' +
+        '<div class="flex justify-between items-center p-3 bg-black/30 rounded-lg text-sm"><span class="text-gray-400">Tipo</span><span class="text-gold font-medium text-sm">' + typeText + '</span></div>' +
+        '</div>' +
+        avatarModalHTML();
+    }
+
+    function avatarModalHTML() {
+      var avatars = [
+        '/assets/avatars/1.svg',
+        '/assets/avatars/2.svg',
+        '/assets/avatars/3.svg',
+        '/assets/avatars/4.svg',
+        '/assets/avatars/5.svg',
+        '/assets/avatars/6.svg',
+        '/assets/avatars/7.svg'
+      ];
+      var avatarOptions = '';
+      for (var i = 0; i < avatars.length; i++) {
+        avatarOptions += '<button onclick="selectAvatar(\'' + avatars[i] + '\')" class="w-12 h-12 rounded-full border-2 border-yellow-500/30 hover:border-yellow-400 transition overflow-hidden"><img src="' + avatars[i] + '" class="w-full h-full object-cover"></button>';
+      }
+      return '<div id="avatarModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center">' +
+        '<div class="card-g rounded-xl border border-yellow-500/30 p-6 max-w-sm w-full mx-4">' +
+        '<h3 class="text-lg font-bold mb-4 text-center">Escolha seu Avatar</h3>' +
+        '<div class="grid grid-cols-4 gap-3 mb-4">' + avatarOptions + '</div>' +
+        '<button onclick="closeAvatarModal()" class="w-full bg-gray-700 hover:bg-gray-600 py-2 rounded-lg text-sm">Cancelar</button>' +
+        '</div></div>';
+    }
+
+    function showAvatarModal() {
+      document.getElementById('avatarModal').classList.remove('hidden');
+    }
+
+    function closeAvatarModal() {
+      document.getElementById('avatarModal').classList.add('hidden');
+    }
+
+    async function selectAvatar(avatarUrl) {
+      try {
+        var res = await fetch('/api/user/avatar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatar_url: avatarUrl })
+        });
+        var data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert('Erro ao salvar avatar');
+        }
+      } catch(e) {
+        alert('Erro de conexão');
+      }
+    }
+
+    function paymentHTML() {
+      return '<div class="text-center py-8">' +
+        '<div class="w-16 h-16 mx-auto mb-4 bg-yellow-500/20 rounded-full flex items-center justify-center"><span class="text-3xl">💎</span></div>' +
+        '<h2 class="text-lg font-bold mb-2">Escolha seu Plano</h2>' +
+        '<p class="text-gray-400 text-sm mb-6">Selecione um plano para continuar</p>' +
+        '<div class="grid md:grid-cols-2 gap-4 max-w-lg mx-auto">' +
+        // Start Plan
+        '<div class="card-g rounded-xl border border-gray-600/30 p-4">' +
+        '<div class="text-center mb-3">' +
+        '<h3 class="text-sm font-bold text-white">NGR Fluxos</h3>' +
+        '<p class="text-gray-500 text-xs">Automação sem IA</p>' +
+        '</div>' +
+        '<div class="text-2xl font-bold text-gold mb-3">R$ 27,90<span class="text-xs text-gray-400">/mês</span></div>' +
+        '<div class="text-left text-xs text-gray-400 mb-3 space-y-1">' +
+        '<div>✓ Fluxos automatizados</div>' +
+        '<div>✓ Menu automático</div>' +
+        '<div>✓ Multi-contas WhatsApp</div>' +
+        '</div>' +
+        '<button onclick="subscribe(\'fluxos\')" class="w-full border-2 border-yellow-500 text-yellow-400 hover:bg-yellow-500/10 py-2 rounded-xl text-sm font-bold transition">Escolher Fluxos</button>' +
+        '</div>' +
+        // Pro Plan
+        '<div class="card-g rounded-xl border border-yellow-500/40 p-4 relative">' +
+        '<div class="absolute -top-2 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 rounded">MAIS POPULAR</div>' +
+        '<div class="text-center mb-3">' +
+        '<h3 class="text-sm font-bold text-white">NGR Pro (IA)</h3>' +
+        '<p class="text-gray-500 text-xs">Automação + IA</p>' +
+        '</div>' +
+        '<div class="text-2xl font-bold text-gold mb-3">R$ 56,90<span class="text-xs text-gray-400">/mês</span></div>' +
+        '<div class="text-left text-xs text-gray-400 mb-3 space-y-1">' +
+        '<div>✓ Tudo do Fluxos</div>' +
+        '<div>✓ 🤖 IA Groq Llama</div>' +
+        '<div>✓ Respostas inteligentes</div>' +
+        '<div>✓ Histórico de conversas</div>' +
+        '</div>' +
+        '<button onclick="subscribe(\'pro\')" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-400 text-black py-2 rounded-xl text-sm font-bold hover:opacity-90 transition">Escolher Pro</button>' +
+        '</div>' +
+        '</div>' +
+        '<p class="text-center text-gray-500 text-xs mt-4">🔒 Pagamento via PIX • 7 dias grátis no trial</p>';
+    }
+
+    function showQR(qrData) {
+      var container = document.getElementById('qrContainer');
+      var status = document.getElementById('qrStatus');
+      if (!container || !status) return;
+      document.getElementById('qrContainer').innerHTML = '';
+      if (qrData === 'loading') {
+        status.innerHTML = '<p class="text-yellow-400 animate-pulse text-sm">Aguarde... Gerando QR Code</p>';
+      } else if (qrData) {
+        var img = document.createElement('img');
+        img.src = qrData;
+        img.className = 'max-w-[200px] mx-auto rounded-lg border-2 border-yellow-500';
+        img.alt = 'QR Code WhatsApp';
+        container.appendChild(img);
+        status.innerHTML = '<p class="text-green-400 mt-3 text-sm">Escaneie com seu WhatsApp</p>';
+      } else {
+        status.innerHTML = '<p class="text-green-400 text-sm">WhatsApp conectado!</p>';
+      }
+    }
+
+    function updateStatus(status) {
+      var el = document.getElementById('qrStatus');
+      var waText = document.getElementById('waStatusText');
+      if (el) {
+        if (status.connected) {
+          el.innerHTML = '<p class="text-green-400 text-sm">WhatsApp conectado!</p>';
+        } else if (status.connecting) {
+          el.innerHTML = '<p class="text-yellow-400 animate-pulse text-sm">Conectando...</p>';
+        } else {
+          el.innerHTML = '<p class="text-gray-400 text-sm">' + (status.message || 'Desconectado') + '</p>';
+        }
+      }
+      if (waText) {
+        if (status.connected) {
+          waText.textContent = 'Conectado';
+          waText.className = 'text-green-400 font-medium text-sm';
+        } else if (status.connecting) {
+          waText.textContent = 'Conectando...';
+          waText.className = 'text-yellow-400 font-medium text-sm';
+        } else {
+          waText.textContent = 'Desconectado';
+          waText.className = 'text-gray-400 text-sm';
+        }
+      }
+    }
+
+    async function connectWA() {
+      var btn = document.getElementById('btnConnect');
+      var status = document.getElementById('qrStatus');
+      if (!status) return;
+      btn.disabled = true;
+      btn.textContent = 'Conectando...';
+      status.innerHTML = '<p class="text-yellow-400 animate-pulse text-sm">Iniciando conexao...</p>';
+      try {
+        var res = await fetch('/api/whatsapp/connect', { method: 'POST' });
+        var data = await res.json();
+        if (data.error) {
+          status.innerHTML = '<p class="text-red-400 text-sm">Erro: ' + data.error + '</p>';
+          btn.disabled = false;
+          btn.textContent = 'Conectar WhatsApp';
+          return;
+        }
+        if (data.alreadyConnected) {
+          status.innerHTML = '<p class="text-green-400 text-sm">Ja conectado!</p>';
+          btn.disabled = false;
+          btn.textContent = 'Conectar WhatsApp';
+          return;
+        }
+        if (data.connecting || data.success) {
+          status.innerHTML = '<p class="text-yellow-400 animate-pulse text-sm">Aguardando QR Code...</p>';
+          qrTimeout = setTimeout(function() {
+            status.innerHTML = '<p class="text-red-400 text-sm">Tempo excedido. Tente novamente.</p>';
+            btn.disabled = false;
+            btn.textContent = 'Conectar WhatsApp';
+          }, 30000);
+        }
+      } catch(e) {
+        status.innerHTML = '<p class="text-red-400 text-sm">Erro de conexao com o servidor</p>';
+        btn.disabled = false;
+        btn.textContent = 'Conectar WhatsApp';
+      }
+    }
+
+    var origShowQR = showQR;
+    showQR = function(qrData) {
+      var btn = document.getElementById('btnConnect');
+      if (btn && qrData && qrData !== 'loading') {
+        btn.disabled = false;
+        btn.textContent = 'Conectar WhatsApp';
+      }
+      origShowQR(qrData);
+    };
+
+    async function disconnectWA() {
+      if (!confirm('Tem certeza?')) return;
+      try {
+        await fetch('/api/whatsapp/disconnect', { method: 'POST' });
+        var el = document.getElementById('qrStatus');
+        if (el) el.innerHTML = '<p class="text-gray-400 text-sm">WhatsApp desconectado</p>';
+        var container = document.getElementById('qrContainer');
+        if (container) container.innerHTML = '';
+      } catch(e) {}
+    }
+
+    function renderFlows() {
+      var container = document.getElementById('flowsContainer');
+      var flows = SERVER_USER.auto_flows || [];
+      container.innerHTML = '';
+      if (flows.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-500">Nenhum fluxo configurado. Clique em "+ Adicionar Fluxo" para começar.</p>';
+      } else {
+        for (var i = 0; i < flows.length; i++) {
+          var flow = flows[i];
+          var div = document.createElement('div');
+          div.className = 'flex gap-2 items-start';
+          div.innerHTML = '<input type="text" placeholder="Palavra-chave" value="' + escapeHtml(flow.keyword) + '" class="flow-key flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" style="max-width: 30%;">' +
+            '<textarea placeholder="Resposta" class="flow-response flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" rows="2">' + escapeHtml(flow.response) + '</textarea>' +
+            '<button onclick="removeFlow(this)" class="text-red-400 hover:text-red-300 px-2">✕</button>';
+          container.appendChild(div);
+        }
+      }
+    }
+
+    function addFlow() {
+      var container = document.getElementById('flowsContainer');
+      var div = document.createElement('div');
+      div.className = 'flex gap-2 items-start';
+      div.innerHTML = '<input type="text" placeholder="Palavra-chave" class="flow-key flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" style="max-width: 30%;">' +
+        '<textarea placeholder="Resposta" class="flow-response flex-1 bg-black/50 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" rows="2"></textarea>' +
+        '<button onclick="removeFlow(this)" class="text-red-400 hover:text-red-300 px-2">✕</button>';
+      container.appendChild(div);
+    }
+
+    function removeFlow(btn) {
+      var div = btn.parentElement;
+      var container = div.parentElement;
+      container.removeChild(div);
+      if (container.children.length === 0) {
+        renderFlows();
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getFlowsFromDOM() {
+      var container = document.getElementById('flowsContainer');
+      var flows = [];
+      var divs = container.querySelectorAll(':scope > div');
+      for (var i = 0; i < divs.length; i++) {
+        var keyInput = divs[i].querySelector('.flow-key');
+        var responseInput = divs[i].querySelector('.flow-response');
+        if (keyInput && keyInput.value.trim() && responseInput && responseInput.value.trim()) {
+          flows.push({ keyword: keyInput.value.trim().toLowerCase(), response: responseInput.value.trim() });
+        }
+      }
+      return flows;
+    }
+
+    async function saveAI() {
+      var btn = document.getElementById('btnSaveAI');
+      var text = document.getElementById('btnSaveAIText');
+      var spinner = document.getElementById('btnSaveAISpinner');
+      btn.disabled = true;
+      text.textContent = 'Salvando...';
+      spinner.classList.remove('hidden');
+      try {
+        var aiActiveToggle = document.getElementById('aiActive');
+        var ai_active = aiActiveToggle ? aiActiveToggle.checked : true;
+        var auto_flows = getFlowsFromDOM();
+        var selectedModelSelect = document.getElementById('selectedModel');
+        var selected_model = selectedModelSelect ? selectedModelSelect.value : 'llama-3.3-70b-versatile';
+        
+        var res = await fetch('/api/settings/save-ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groq_key: document.getElementById('groqKey') ? document.getElementById('groqKey').value : '',
+            ai_prompt: document.getElementById('aiPrompt') ? document.getElementById('aiPrompt').value : '',
+            ai_active: ai_active,
+            auto_flows: auto_flows,
+            selected_model: selected_model
+          })
+        });
+        var data = await res.json();
+        if (data.success) {
+          // Update SERVER_USER with saved values
+          SERVER_USER.ai_active = ai_active;
+          SERVER_USER.auto_flows = auto_flows;
+          SERVER_USER.selected_model = selected_model;
+          alert('Configurações Salvas!');
+        } else {
+          console.error('Erro ao salvar:', data);
+          alert('Erro ao salvar configurações');
+        }
+      } catch(e) {
+        console.error('Erro de rede:', e);
+        alert('Erro ao salvar configurações');
+      } finally {
+        btn.disabled = false;
+        text.textContent = 'Salvar Todas as Configurações';
+        spinner.classList.add('hidden');
+      }
+    }
+
+    async function subscribe(planType) {
+      var btn = event.target;
+      var plan = planType || 'pro';
+      btn.textContent = 'Gerando PIX...';
+      btn.disabled = true;
+      try {
+        var res = await fetch('/api/subscription/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan: plan })
+        });
+        console.log('[subscribe] Status:', res.status);
+        var data = await res.json();
+        console.log('[subscribe] Resposta:', JSON.stringify(data));
+        
+        if (data.isAdmin) {
+          alert('Conta admin tem acesso permanente!');
+          btn.textContent = 'Conta Admin';
+          return;
+        }
+        
+        if (data.success && data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          alert(data.error || 'Erro ao gerar checkout. Verifique o console.');
+          btn.textContent = 'Tentar novamente';
+          btn.disabled = false;
+        }
+      } catch(e) {
+        console.error('[subscribe] Erro:', e);
+        alert('Erro de conexão: ' + e.message);
+        btn.textContent = 'Tentar novamente';
+        btn.disabled = false;
+      }
+    }
+
+    async function logout() {
+      try { await fetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
+      window.location.href = '/';
+    }
+
+    var navItems = document.querySelectorAll('.nav-item');
+    for (var i = 0; i < navItems.length; i++) {
+      navItems[i].addEventListener('click', function(e) {
+        e.preventDefault();
+        var items = document.querySelectorAll('.nav-item');
+        for (var j = 0; j < items.length; j++) {
+          items[j].className = 'nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:bg-white/5 text-sm';
+        }
+        e.currentTarget.className = 'nav-item flex items-center gap-3 px-4 py-2.5 rounded-xl nav-active text-sm';
+        currentPage = e.currentTarget.dataset.page;
+        checkSubscription();
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
